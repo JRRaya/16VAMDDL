@@ -1,0 +1,20 @@
+/*-- scss:defaults --*/
+
+// Colores principales — modo claro
+$body-bg:        #ffffff;
+$body-color:     #1a1a1a;
+$link-color:     #2c7bb6;
+$code-bg:        #f5f5f5;
+$code-color:     #c0392b;
+
+/*-- scss:rules --*/
+
+// Mostrar solo en modo claro
+.dark-mode  { display: none;  }
+.light-mode { display: block; }
+
+// Header con logo institucional
+.quarto-title-block .logo img {
+  max-height: 60px;
+  object-fit: contain;
+}

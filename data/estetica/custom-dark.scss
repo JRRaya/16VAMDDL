@@ -1,0 +1,25 @@
+/*-- scss:defaults --*/
+
+// Colores principales — modo oscuro
+$body-bg:        #1e2228;
+$body-color:     #e8eaed;
+$link-color:     #7ab4e8;
+$code-bg:        #2d2d2d;
+$code-color:     #e06c75;
+
+/*-- scss:rules --*/
+
+// Mostrar solo en modo oscuro
+.light-mode { display: none;  }
+.dark-mode  { display: block; }
+
+// Mapview y leaflet — fondo transparente en dark mode
+.leaflet-container {
+  background: #2a2a2a !important;
+}
+
+// Tablas gt en dark mode
+.gt_table {
+  background-color: #2a2a2a !important;
+  color: #e8eaed !important;
+}

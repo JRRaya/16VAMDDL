@@ -1,0 +1,1392 @@
+---
+title: "Modela y extracción de métricas de parcelas y árboles individuales a partir de datos LiDAR"
+subtitle: "Entrega de la asignatura *Variables de Árbol de Masa Derivadas de Datos LiDAR*"
+description: "En este trabajo se desarrolla la segunda parte del procesamiento y manejo de datos LiDAR, mucho más enfocada en obtener productos cartográficos de valor para la gestión forestal eficiente"
+author: "Raya Castillo, José Raúl"
+email: a02racaj@uco.es
+date: today
+affiliation: Universidad de Córdoba
+
+github-repo: "https://github.com/JRRaya/16VAMDDL.git"
+logo: "img/logo.png" 
+
+format:
+  lumo-html:
+    code-fold: true
+    toc: true
+    number-sections: true
+    embed-resources: true
+    self-contained-math: true
+    smooth-scroll: true
+    fig-width: 9
+    fig-height: 6
+    theme:
+      light: [_extensions/lumo/lumo.scss, data/estetica/custom-light.scss]
+      dark:  [_extensions/lumo/lumo.scss, data/estetica/custom-dark.scss]
+
+execute: 
+  message: false
+  warning: false
+  error: false
+  clean: true
+
+knitr:
+  opts_knit:
+    root.dir: ".."
+    fig.align: 'center'
+---
+
+# Práctica 2: Diseño de parcelas de campo
+
+```{r}
+#| label: practica-2
+
+# 1. Carga de paquetes y limpieza de entorno
+# 1.1. Limpiamos la RAM
+rm(list = ls(all.names = TRUE))
+suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
+invisible(gc(full = TRUE, verbose = FALSE))
+
+# 1.2. Cargamos las librerías a emplear
+pacman::p_load(here, terra, sf, dplyr, mapview, ggplot2, magrittr, viridis, gt)
+
+# 2. Carga de datos
+# 2.1. Área de estudio (AOI)
+aoi <- sf::st_read(
+  here::here("data/P2/aoi/MONTE_FILABRES.shp"),
+  quiet = TRUE
+) %>% 
+  sf::st_transform(crs = 25830) %>% 
+  sf::st_zm() %>% # Reducir a 2D
+  dplyr::select(geometry)
+
+# 2.2. Métricas LiDAR
+# 2.2.1. Rasteres
+cov <- terra::rast(
+  here::here("data/P2/metricas/Metricas_cov.asc")
+) %T>% 
+  terra::set.crs(value = "EPSG:25830")
+
+
+p90 <- terra::rast(
+  here::here("data/P2/metricas/Metricas_p90.asc")
+) %T>% 
+  terra::set.crs(value = "EPSG:25830")
+
+# 2.2.2. Dataframes de las métricas LiDAR
+cov_df <- cov %>% 
+  terra::as.data.frame() %>% 
+  dplyr::rename(cov = Metricas_cov)
+
+p90_df <- p90 %>% 
+  terra::as.data.frame() %>% 
+  dplyr::rename(p90 = Metricas_p90)
+
+# 2.3. Parcelas de muestreo
+parcelas <- sf::st_read(
+  here::here("data/P2/parcelas/coordenadas_parcelas.shp"),
+  quiet = TRUE
+) %>% 
+  sf::st_transform(crs = 25830) %>% 
+  dplyr::select(geometry)
+
+# 3. Análisis de las métricas LiDAR
+# 3.1. Mapas
+mapview::mapview(
+  cov, 
+  na.color = "transparent",
+  col.regions = viridis::viridis(100, option = "C"),
+  alpha.regions = 1,
+  layer.name = "Cobertura Vegetal"
+) + 
+  mapview::mapview(
+    p90, 
+    na.color = "transparent",
+    col.regions = viridis::viridis(100, option = "D"), 
+    alpha.regions = 1,
+    layer.name = "Percentil 90 de Alturas"
+  ) +
+    mapview::mapview(
+      aoi,
+      na.color = "transparent",
+      alpha.regions = 0.6,
+      layer.name = "Area de Interés"
+    ) +
+      mapview::mapview(
+        parcelas,
+        na.color = "transparent",
+        alpha.regions = 1,
+        layer.name = "Parcelas de muestreo"
+      )
+
+# 3.2. Histogramas
+(plot_cov <- ggplot(cov_df, aes(x = cov)) +
+  geom_histogram(aes(y = after_stat(density), fill = after_stat(density)), binwidth = 1) +
+  geom_density(color = "#b90b3cff", linewidth = 1) +
+  geom_vline(aes(xintercept = mean(cov), color = "Media"), linetype = "dashed", linewidth = 1.2) +
+  geom_vline(aes(xintercept = median(cov), color = "Mediana"), linetype = "solid", linewidth = 1.2) +
+  scale_fill_viridis_c(option = "C", limits = c(0, 0.02), oob = scales::squish, name = "Densidad") +
+  scale_color_manual(name = "Estadísticos", values = c("Media" = "#00ff1eff", "Mediana" = "#1512e3ff")) +
+  labs(title = "Densidad de valores de porcentaje de Covertura Vegetal", subtitle = "Histograma + gráfico de densidad", x = "Covertura", y = "Densidad", fill = "Densidad") +
+  theme_minimal())
+
+(plot_p90 <- ggplot(p90_df, aes(x = p90)) +
+  geom_histogram(aes(y = after_stat(density), fill = after_stat(density)), binwidth = 1) +
+  geom_density(color = "#b90b3cff", linewidth = 1) +
+  geom_vline(aes(xintercept = mean(p90), color = "Media"), linetype = "dashed", linewidth = 1.5) +
+  geom_vline(aes(xintercept = median(p90), color = "Mediana"), linetype = "solid", linewidth = 1.5) +
+  scale_fill_viridis_c(option = "C", name = "Densidad (Raíz cuadrada)") +
+  scale_color_manual(name = "Estadísticos", values = c("Media" = "#00ff1eff", "Mediana" = "#1512e3ff")) +
+  labs(title = "Densidad de valores del Percentil 90 de Alturas", subtitle = "Histograma + gráfico de densidad", x = "Percentil 90 altura", y = "Densidad", fill = "Densidad") +
+  theme_minimal())
+
+# 4. Reclasificación
+# 4.1. Matrices de reclasificación
+cov_m <- matrix(
+  c(
+    0, 40, 10,
+    40, 60, 20,
+    60, 100, 30
+  ),
+  nrow = 3,
+  byrow = TRUE
+)
+
+p90_m <- matrix(
+  c(
+    0, 4, 1,
+    4, 6, 2,
+    6, 10, 3,
+    10, 30, 4
+  ),
+  nrow = 4,
+  byrow = TRUE
+)
+
+# 4.2. Reclasificación de los rasteres de métricas
+cov_c <- cov %>% 
+  terra::classify(
+    rcl = cov_m,
+    include.lowest = FALSE
+  ) %>% 
+  terra::as.factor()
+
+p90_c <- p90 %>% 
+  terra::classify(
+    rcl = p90_m,
+    include.lowest = FALSE
+  ) %>% 
+  terra::as.factor()
+
+# 4.3. Comprobación visual
+mapview::mapview(
+  cov_c, 
+  na.color = "transparent",
+  col.regions = viridis::viridis(nrow(terra::cats(cov_c)[[1]]), option = "C"),
+  alpha.regions = 1,
+  at = seq(0.5, nrow(terra::cats(cov_c)[[1]]) + 0.5, by = 1),
+  layer.name = "Cobertura Vegetal Reclasificada",
+  query.digits  = 0
+) + 
+  mapview::mapview(
+    p90_c,
+    na.color = "transparent",
+    col.regions = viridis::viridis(nrow(terra::cats(p90_c)[[1]]), option = "D"), 
+    alpha.regions = 1,
+    at = seq(0.5, nrow(terra::cats(p90_c)[[1]]) + 0.5, by = 1),
+    layer.name = "Percentil 90 de Alturas Reclasificada",
+    query.digits  = 0
+  )
+
+# 5. Rodalización
+# 5.1. Calcular estratos
+estratos <- (cov_c + p90_c) %>% 
+  terra::mask(aoi) %>% 
+  terra::as.factor()
+
+# 5.2. Función auxiliar de reasignación de parcelas
+reasignar <- function(n) {
+  for (i in which(n == 0L)) {
+    n[i] <- 1L
+    n[which.max(n)] <- n[which.max(n)] - 1L
+  }
+  n
+}
+
+# 5.3. Calcular superficie de cada estrato y asignar número de parcelas
+estratos_s <- terra::expanse(
+  estratos,
+  unit = "ha",
+  byValue = TRUE
+) %>% 
+  dplyr::mutate(
+    `Superficie (ha)` = base::round(
+      x = area, 
+      digits = 3
+    ),
+    `Porcentaje superficie (%)` = base::round(
+      x = area/sum(area), 
+      digits = 3
+    ),
+    `Número de parcelas` = base::round(
+      x = area/sum(area) * 27,
+      digits = 0
+    ),
+    `Número de parcelas` = {
+      n <- floor(area / sum(area) * 27)
+      idx <- order(area / sum(area) * 27 - floor(area / sum(area) * 27), decreasing = TRUE)[seq_len(27L - as.integer(sum(floor(area / sum(area) * 27)))[1])]
+      n[idx] <- n[idx] + 1L
+      n
+    },
+    `Número de parcelas reasignadas` = reasignar(`Número de parcelas`)
+  ) %>% 
+  dplyr::select(-c(layer, value, area))
+
+# 5.4. Comprobación
+# 5.4.1. Tabla resumen
+estratos_s %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "Diseño de muestreo estratificado",
+    subtitle = "Distribución de parcelas por estrato"
+  ) %>%
+  gt::fmt_number(
+    columns = `Superficie (ha)`,
+    decimals = 2
+  ) %>%
+  gt::fmt_percent(
+    columns = `Porcentaje superficie (%)`,
+    decimals = 1
+  ) %>%
+  gt::grand_summary_rows(
+    columns = c(`Superficie (ha)`, `Número de parcelas`, `Número de parcelas reasignadas`),
+    fns = list(Total ~ sum(.))
+  ) %>%
+  gt::cols_align(align = "center") %>%
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = list(
+      gt::cells_column_labels(),
+      gt::cells_grand_summary()
+    )
+  ) %>%
+  gt::tab_style(
+    style = gt::cell_borders(sides = "bottom", weight = gt::px(2)),
+    locations = gt::cells_column_labels()
+  ) %>%
+  gt::tab_style(
+    style = gt::cell_borders(sides = "top",
+      weight = gt::px(2),
+      style = "solid",
+      color = "black"
+    ),
+    locations = gt::cells_grand_summary()
+  ) %>%
+  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) %>%
+  gt::tab_options(
+    table.border.top.style = "hidden",
+    table.border.bottom.style = "hidden",
+    column_labels.border.top.width = gt::px(2),
+    heading.border.bottom.style = "hidden",
+    heading.align = "left",
+    stub.border.style = "hidden"
+  )
+
+# 5.4.2. Mapa
+mapview::mapview(
+  estratos, 
+  na.color = "transparent",
+  col.regions = viridis::viridis(nrow(terra::cats(estratos)[[1]]) - 1, option = "C"),
+  alpha.regions = 1,
+  layer.name = "Estratos",
+  query.digits  = 0
+) + 
+  mapview::mapview(
+    parcelas,
+    na.color = "transparent",
+    alpha.regions = 1,
+    layer.name = "Parcelas de muestreo"
+  )
+
+# 6. Guardado
+sf::st_write(
+  obj = aoi,
+  dsn = here::here("data/P2/aoi/aoi.gpkg"),
+  quiet = TRUE,
+  delete_dsn = TRUE
+)
+
+sf::st_write(
+  obj = parcelas,
+  dsn = here::here("data/P2/parcelas/parcelas.gpkg"),
+  quiet = TRUE,
+  delete_dsn = TRUE
+)
+
+terra::writeRaster(
+  x = estratos,
+  filename = here::here("data/P2/metricas/estratos.tif"),
+  overwrite = TRUE
+)
+
+terra::writeRaster(
+  x = cov_c,
+  filename = here::here("data/P2/metricas/cov_c.tif"),
+  overwrite = TRUE
+)
+
+terra::writeRaster(
+  x = p90_c,
+  filename = here::here("data/P2/metricas/p90_c.tif"),
+  overwrite = TRUE
+)
+```
+
+# Práctica 3: Extracción de métricas de parcelas de campo y preparación de BBDD para modelización de inventarios forestales LiDAR
+
+```{r}
+#| label: practica-3
+
+# 1. Carga de paquetes y limpieza de entorno
+# 1.1. Limpiamos la RAM
+rm(list = ls(all.names = TRUE))
+suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
+invisible(gc(full = TRUE, verbose = FALSE))
+
+# 1.2. Cargamos las librerías a emplear
+pacman::p_load(here, lidR, terra, sf, dplyr, mapview, ggplot2, purrr, dplyr, readxl)
+
+# 2. Carga de datos
+# 2.1. Área de estudio (AOI)
+aoi <- sf::st_read(
+  here::here("data/P2/aoi/aoi.gpkg"),
+  quiet = TRUE
+) 
+
+# 2.2.Parcelas
+parcelas <- sf::st_read(
+  here::here("data/P2/parcelas/parcelas.gpkg"),
+  quiet = TRUE
+)
+
+# 2.3. Teselas normalizadas
+suppressMessages({
+  catalogo <- lidR::readLAScatalog(
+    folder = here::here("data/P3/teselas"),
+    filter = "-drop_withheld -drop_z_below 0",
+    progress = FALSE
+  )  %>%
+    sf::st_set_crs(25830) 
+})
+
+# 2.4. Datos de campo de las parcelas
+inventario <- readxl::read_xls(
+  path = here::here("data/P2/parcelas/resultado_parcelas_.xls")
+) %>% 
+  dplyr::mutate(id = base::as.factor(fid))
+
+# 3. Datos LiDAR de las parcelas
+# 3.1. Extraer nubes de puntos de las parcelas
+# 3.1.1. Ocultar progreso
+lidR::opt_progress(catalogo) <- FALSE
+
+# 3.1.2. Recortar la nube de puntos con los polígonos de las parcelas
+parcelas_n <- lidR::clip_roi(
+  las = catalogo,
+  geometry = parcelas,
+  radius = 11,
+  verbose = FALSE
+) 
+
+# 3.2. Extraer métricas lidar
+# 3.2.1. Función de extracción de métricas lidar
+metricas <- function (x) {
+  metricas_l <- lidR::stdmetrics(
+    x = x$X,
+    y = x$Y,
+    z = x$Z,
+    i = x$Intensity,
+    rn = x$ReturnNumber,
+    class = x$Classification
+  ) %>% 
+    do.call(cbind, .)
+}
+
+# 3.2.2. Aplicar sobre cada parcela
+parcelas_m <- purrr::map(parcelas_n, metricas) %>%
+  do.call(rbind, .) %>%
+  as.data.frame() %>%
+  dplyr::mutate(id = base::as.factor(seq(1:length(parcelas_n))))
+
+# 4. Construcción de la BBDD
+bbdd <- base::merge(
+  x = inventario, 
+  y = parcelas_m, 
+  by = "id"
+) %>% 
+  dplyr::select(-c(id, Nombre, fid, ID, Radio, area)) %>% 
+  dplyr::rename_with(.fn = janitor::make_clean_names)
+
+# 5. Guardado
+saveRDS(
+  object = bbdd, 
+  file = here::here("data/P3/bbdd/bbdd.rds")
+)
+```
+
+```{r}
+#| label: practica-3-export
+#| eval: false
+#| echo: false
+
+pacman::p_load(lidR, sf, here, jsonlite, fs, purrr, dplyr, plotly, htmlwidgets)
+
+# 1. Recorte y JSON
+parcelas_data <- purrr::imap(
+  seq_len(nrow(parcelas)),
+  function(i, ...) {
+    lidR::opt_progress(catalogo) <- FALSE
+    las <- lidR::clip_roi(las = catalogo, geometry = parcelas[i, ], radius = 11); if (lidR::is.empty(las)) return(NULL)
+    df <- las@data %>% dplyr::as_tibble() %>% dplyr::select(X, Y, Z) %>% dplyr::slice_sample(n = min(nrow(df), 10000)) %>% dplyr::mutate(X = base::round(X - mean(X), 2), Y = base::round(Y - mean(Y), 2), Z = base::round(Z - min(Z),  2))
+    list(id = i, nombre = paste0("Parcela ", i), x = df$X, y = df$Y, z = df$Z)
+  }
+) %>%
+  purrr::compact()
+
+jsonlite::write_json(x = parcelas_data, path = fs::path("data/P3/parcelas_n/parcelas_lidar.json"), auto_unbox = TRUE)
+message("JSON guardado: ", fs::path("data/P3/parcelas_n/parcelas_lidar.json"))
+
+# 2. HTML conjunto con todas las parcelas + selector de dropdown plotly
+fig_conjunto <- plotly::plot_ly()
+
+purrr::iwalk(parcelas_data, function(p, i) {
+  fig_conjunto <<- fig_conjunto %>%
+    plotly::add_trace(x = p$x, y = p$y, z = p$z, type = "scatter3d", mode = "markers", name = p$nombre, visible = if (i == 1) TRUE else FALSE, marker = list(size = 2, color = p$z, colorscale = "Viridis", opacity    = 0.85, showscale  = TRUE), hovertemplate = "X: %{x:.1f}<br>Y: %{y:.1f}<br>Z: %{z:.1f} m<extra></extra>")
+})
+
+# 3. Botones del dropdown (uno por parcela)
+botones <- purrr::imap(parcelas_data, function(p, i) {
+  visible <- rep(FALSE, length(parcelas_data)); visible[i] <- TRUE
+  list(method = "update", label = p$nombre, args = list(list(visible = visible), list(title = list(text = p$nombre, x = 0.5, xanchor = "center", font = list(size = 14, color = "#222")))))
+})
+fig_conjunto <- fig_conjunto %>%
+  plotly::layout(
+    updatemenus = list(list(type = "dropdown",x = 0, xanchor = "left", y = 1.12, yanchor = "top", buttons = botones, showactive = TRUE)),
+    scene = list(xaxis = list(title = "X (m)", showbackground = FALSE), yaxis = list(title = "Y (m)", showbackground = FALSE), zaxis = list(title = "Z (m)", showbackground = FALSE), camera = list(eye = list(x = 1.5, y = 1.5, z = 1.2))), paper_bgcolor = "white", margin        = list(t = 80, r = 20, b = 10, l = 10)
+  )
+htmlwidgets::saveWidget(widget = fig_conjunto, file = fs::path("data/P3/parcelas_n/parcelas_todas.html"), selfcontained = TRUE, libdir = NULL, title = "Nubes de puntos LiDAR — todas las parcelas")
+message("HTML conjunto guardado: ", fs::path("data/P3/parcelas_n/parcelas_todas.html"))
+```
+
+```{r}
+#| label: practica-3-json-embed
+#| echo: false
+#| results: asis
+
+pacman::p_load(fs, here, jsonlite)
+
+json_str <- jsonlite::toJSON(
+  jsonlite::read_json(
+    here::here("data/P3/parcelas_n/parcelas_nidar.json")
+  ),
+  auto_unbox = TRUE
+)
+
+cat(sprintf(
+  '<script type="application/json" id="lidar-data">%s</script>\n',
+  json_str
+))
+```
+
+{{< include practica_3.html >}}
+
+# Práctica 4: Modelización y análisis estadísticos paramétricos a partir de datos LiDAR
+
+```{r}
+#| label: practica-4
+
+# 1. Carga de paquetes y limpieza de entorno
+# 1.1. Limpiamos la RAM
+rm(list = ls(all.names = TRUE))
+suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
+invisible(gc(full = TRUE, verbose = FALSE))
+
+# 1.2. Cargamos las librerías a emplear
+pacman::p_load(
+  here, tidymodels, tidyverse, skimr, DataExplorer,
+  finetune, plsmod, performance, corrr, patchwork,
+  car, gt, glmnet, yardstick, tune, workflowsets,
+  dials, rules, vip, colino, kernlab, bundle
+)
+pacman::p_load_gh("stevenpawley/colino")
+
+
+# 2. Carga de datos
+# 2.1. Base de datos
+df <- readRDS(
+  file = here::here("data/P3/bbdd/bbdd.rds")
+)
+
+# 2.2. Split del dataset
+set.seed(123)
+df_split <- rsample::initial_split(df, prop = 0.8)
+
+# 2.3. Datasets de entrenamiento y test
+df_train <- rsample::training(df_split)
+df_test  <- rsample::testing(df_split)
+
+# 2.4. Variables respuesta
+vars_respuesta <- c("n_pies_ha", "g_m2_ha", "dg_cm", "dmedio_cm", "ho_assman_m", "hmedia_m")
+
+# 2.5. Receta base de limpieza
+r_clean <- recipes::recipe(~ ., data = df_train) %>%
+  recipes::update_role(everything(), new_role = "predictor") %>%
+  recipes::update_role(dplyr::all_of(vars_respuesta), new_role = "outcome") %>%
+  recipes::step_naomit(everything()) %>%
+  recipes::step_zv(recipes::all_predictors())
+
+
+# 3. EDA
+# 3.1. Diagnóstico inicial
+df_train %>% skimr::skim()
+
+# 3.2. Diagnóstico de outliers multivariante
+# Se emplea PCA para reducir multicolinealidad antes de la detección
+# (la multicolinealidad impide invertir la matriz de covarianza)
+df_pca_p <- r_clean %>%
+  recipes::step_normalize(recipes::all_predictors()) %>%
+  recipes::step_pca(recipes::all_predictors(), num_comp = 3) %>%
+  recipes::prep() %>%
+  recipes::bake(
+    new_data    = NULL,
+    recipes::all_predictors(),
+    composition = "data.frame"
+  )
+
+outliers <- performance::check_outliers(x = df_pca_p, method = "all")
+
+print(outliers)
+plot(outliers)
+
+# - 18: detectado en todas las pruebas uni + varias multi → eliminar
+# - 2, 6, 16: detectados en >= 2 componentes → valorar por modelo
+# - 11: pocas observaciones → conservar
+
+# 3.3. Eliminación del outlier claro (obs. 18)
+df_outliers <- recipes::bake(
+  object      = recipes::prep(r_clean),
+  new_data    = NULL,
+  composition = "data.frame"
+) %>%
+  dplyr::filter(!dplyr::row_number() %in% c(18)) %>%
+  dplyr::select(where(~ dplyr::n_distinct(.x) > 1))
+
+# 3.4. Análisis de normalidad
+# 3.4.1. Receta de corrección (Yeo-Johnson: válida para cualquier número real)
+r_normalidad <- recipes::recipe(
+  ~ .,
+  data = df_outliers %>% dplyr::select(-dplyr::all_of(vars_respuesta))
+) %>%
+  recipes::update_role(everything(), new_role = "predictor") %>%
+  recipes::step_YeoJohnson(recipes::all_predictors())
+
+df_normalidad <- recipes::bake(
+  object      = recipes::prep(r_normalidad),
+  new_data    = NULL,
+  composition = "data.frame"
+)
+
+# 3.4.2. Formatos largos para comparativa
+df_normalidad_pre <- df_outliers %>%
+  tidyr::pivot_longer(cols = everything(), names_to = "Variable", values_to = "Valor") %>%
+  dplyr::mutate(Estado = "Original")
+
+df_normalidad_post <- df_normalidad %>%
+  tidyr::pivot_longer(cols = everything(), names_to = "Variable", values_to = "Valor") %>%
+  dplyr::mutate(Estado = "Transformado")
+
+df_normalidad_comb <- dplyr::bind_rows(df_normalidad_pre, df_normalidad_post)
+
+# 3.4.3. Test de Shapiro-Wilk
+shapiro_normalidad_pre <- df_normalidad_pre %>%
+  dplyr::group_by(Variable) %>%
+  dplyr::summarise(broom::tidy(stats::shapiro.test(Valor)), .groups = "drop")
+
+shapiro_normalidad_post <- df_normalidad_post %>%
+  dplyr::group_by(Variable) %>%
+  dplyr::summarise(broom::tidy(stats::shapiro.test(Valor)), .groups = "drop")
+
+shapiro_comparativa <- shapiro_normalidad_pre %>%
+  dplyr::select(Variable, statistic, p.value) %>%
+  dplyr::rename(statistic_pre = statistic, p_value_pre = p.value) %>%
+  dplyr::left_join(
+    shapiro_normalidad_post %>%
+      dplyr::select(Variable, statistic, p.value) %>%
+      dplyr::rename(statistic_post = statistic, p_value_post = p.value),
+    by = "Variable"
+  ) %>%
+  dplyr::mutate(
+    normal_pre  = ifelse(p_value_pre  > 0.05, "check", "xmark"),
+    normal_post = ifelse(p_value_post > 0.05, "check", "xmark")
+  ) %>%
+  dplyr::arrange(Variable)
+
+# 3.4.4. Tabla de resultados
+(tabla_normalidad <- shapiro_comparativa %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title    = "Test de normalidad de Shapiro-Wilk",
+    subtitle = "Comparación antes y después de la transformación"
+  ) %>%
+  gt::tab_spanner(label = "Antes",   columns = c(statistic_pre,  p_value_pre,  normal_pre)) %>%
+  gt::tab_spanner(label = "Después", columns = c(statistic_post, p_value_post, normal_post)) %>%
+  gt::cols_label(
+    Variable       = "Variable",
+    statistic_pre  = "W",  p_value_pre  = "p-valor", normal_pre  = "¿Normal?",
+    statistic_post = "W",  p_value_post = "p-valor", normal_post = "¿Normal?"
+  ) %>%
+  gt::fmt_number(columns = c(statistic_pre, statistic_post), decimals = 3) %>%
+  gt::fmt_scientific(columns = c(p_value_pre, p_value_post), decimals = 2) %>%
+  gt::fmt_icon(columns = c(normal_pre, normal_post)) %>%
+  gt::tab_style(
+    style     = gt::cell_text(color = "#2e7d32"),
+    locations = gt::cells_body(columns = normal_pre, rows = normal_pre == "check")
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_text(color = "#c62828"),
+    locations = gt::cells_body(columns = normal_pre, rows = normal_pre == "xmark")
+  ) %>%
+  gt::cols_align(align = "center") %>%
+  gt::tab_style(
+    style     = gt::cell_fill(color = "#d4f4dd"),
+    locations = gt::cells_body(columns = p_value_pre, rows = p_value_pre > 0.05)
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_fill(color = "#fbd5d5"),
+    locations = gt::cells_body(columns = p_value_pre, rows = p_value_pre <= 0.05)
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_fill(color = "#d4f4dd"),
+    locations = gt::cells_body(columns = p_value_post, rows = p_value_post > 0.05)
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_fill(color = "#fbd5d5"),
+    locations = gt::cells_body(columns = p_value_post, rows = p_value_post <= 0.05)
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_text(weight = "bold"),
+    locations = gt::cells_column_labels()
+  ) %>%
+  gt::tab_style(
+    style     = gt::cell_borders(sides = "bottom", weight = gt::px(2)),
+    locations = gt::cells_column_labels()
+  ) %>%
+  gt::tab_source_note(
+    source_note = "Verde (p > 0.05) = Normalidad; Rojo (p ≤ 0.05) = No normalidad"
+  ) %>%
+  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) %>%
+  gt::tab_options(
+    table.border.top.style          = "hidden",
+    table.border.bottom.style       = "hidden",
+    column_labels.border.top.width  = gt::px(2),
+    heading.border.bottom.style     = "hidden",
+    heading.align                   = "left"
+  ))
+
+# 4. Modelización
+# 4.1. Validación cruzada mediante Leave-One-Out (LOOCV)
+set.seed(123)
+df_cv <- rsample::vfold_cv(df_outliers, v = 5, repeats = 10)
+
+# 4.2. Receta base por variable respuesta
+r_clean_m <- function (y) {
+  recipes::recipe(
+    stats::as.formula(paste(y, "~ .")),
+    data = df_outliers %>%
+      dplyr::select(-dplyr::all_of(setdiff(vars_respuesta, y)))
+  ) %>%
+    recipes::step_zv(recipes::all_predictors()) %>% 
+    # Eliminamos variables altamente correlacionadas para proteger los grados de libertad
+    recipes::step_corr(recipes::all_predictors(), threshold = 0.75) %>% 
+    # Elimina combinaciones lineales perfectas que hacen colapsar a muestras pequeñas
+    recipes::step_lincomb(recipes::all_predictors()) %>%
+    recipes::step_YeoJohnson(recipes::all_predictors()) %>%
+    recipes::step_normalize(recipes::all_predictors())
+}
+
+# 4.3. Función de construcción de workflows
+workflow <- function (y) {
+  workflowsets::workflow_set(
+    preproc = list(seleccion = r_clean_m(y)),
+    models = list(
+      lasso = parsnip::linear_reg(penalty = tune::tune(), mixture = 1) %>%
+        parsnip::set_engine("glmnet") %>%
+        parsnip::set_mode("regression"),
+      ridge = parsnip::linear_reg(penalty = tune::tune(), mixture = 0) %>%
+        parsnip::set_engine("glmnet") %>%
+        parsnip::set_mode("regression"),
+      enet = parsnip::linear_reg(penalty = tune::tune(), mixture = tune::tune()) %>%
+        parsnip::set_engine("glmnet") %>%
+        parsnip::set_mode("regression"),
+      svm = parsnip::svm_linear(cost = tune::tune()) %>%
+        parsnip::set_engine("kernlab") %>%
+        parsnip::set_mode("regression")
+    ),
+    cross = TRUE
+  )
+}
+
+# 4.4. Función de construcción de modelos
+ajustar_variable <- function(y) {
+  # 1. Optimización con combinaciones de máxima entropía
+  set.seed(123)
+  resultados_grid <- workflowsets::workflow_map(
+    workflow(y),
+    seed = 123,
+    resamples = df_cv,
+    grid = 6, 
+    metrics = yardstick::metric_set(
+      yardstick::rmse,
+      yardstick::rsq,
+      yardstick::mae
+    ),
+    verbose = TRUE
+  )
+
+  # 2. Selección del modelo ganadro (RMSE)
+  ranking <- workflowsets::rank_results(resultados_grid, rank_metric = "rmse", select_best = TRUE)
+  
+  # 3. Finalizar el workflow ejecutor
+  wf_final <- tune::finalize_workflow(
+    workflowsets::extract_workflow(
+      resultados_grid, 
+      id = ranking$wflow_id[1]
+    ), 
+    tune::select_best(
+      workflowsets::extract_workflow_set_result(
+        resultados_grid, 
+        id = ranking$wflow_id[1]
+      ), 
+      metric = "rmse"
+    )
+  )
+  
+  # 4. Ajuste final sobre el conjunto completo de entrenamiento 
+  modelo_final <- parsnip::fit(wf_final, data = df_outliers)
+  
+  # 5. Tabla de resultados
+  dplyr::tibble(
+    respuesta = y,
+    cv = list(ranking %>% 
+      dplyr::filter(
+        wflow_id == ranking$wflow_id[1], 
+        .metric == "rmse"
+      ) %>%
+      dplyr::select(
+        metodo = wflow_id, 
+        mean, 
+        std_err, 
+        n)
+      ),
+    metodo_ganador = stringr::str_remove(
+      ranking$wflow_id[1], 
+      "seleccion_"
+    ),
+    workflow = list(wf_final),
+    modelo = list(modelo_final)
+  )
+}
+
+# 4.5. Ajuste para todas las variables respuesta
+modelos <- purrr::map_dfr(vars_respuesta, ajustar_variable)
+
+# 4.6. Tabla resumen de LOOCV
+tabla_cv <- modelos %>%
+  dplyr::select(respuesta, cv) %>% 
+  tidyr::unnest(cv) %>%
+  dplyr::arrange(respuesta, mean)
+
+tabla_cv
+
+# El método con menor 'mean' es el ganador
+# Un 'std_err' grande indica gran variabilidad en función del fold
+
+# 4.7. Evaluación sobre el conjunto de test
+evaluacion_test <- purrr::map2_dfr(
+  modelos$respuesta,
+  modelos$modelo,
+  function(y, modelo) {
+    predict(modelo, new_data = df_test) %>%
+      dplyr::bind_cols(df_test %>% dplyr::select(dplyr::all_of(y))) %>%
+      yardstick::metrics(
+        truth = !!rlang::sym(y),
+        estimate = .pred
+      ) %>%
+      dplyr::mutate(respuesta = y)
+  }
+) %>%
+  dplyr::left_join(
+    modelos %>% dplyr::select(respuesta, metodo_ganador),
+    by = "respuesta"
+  )
+
+evaluacion_test
+
+# RMSE mejor en test que en CV: mejor ajuste del modelo por > n
+# 'n_pies_ha' variable poco relacionada con la estructura
+
+# 5. Guardado
+saveRDS(
+  modelos %>% dplyr::mutate(modelo = purrr::map(modelo, bundle::bundle)),
+  here::here("data/P4/modelos.rds")
+)
+```
+
+# Práctica 5: Proyección de resultados del Inventario LiDAR por métodos de masa y Cartografía asociada
+
+```{r}
+#| label: practica-5
+
+# 1. Carga de paquetes y limpieza de entorno
+# 1.1. Limpiamos la RAM
+rm(list = ls(all.names = TRUE))
+suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
+invisible(gc(full = TRUE, verbose = FALSE))
+
+# 1.2. Cargamos las librerías a emplear
+pacman::p_load(here, lidR, terra, sf, dplyr, mapview, webshot, ggplot2, purrr, dplyr, readxl, parsnip, tidymodels, bundle)
+
+# 2. Carga de datos
+# 2.1. Área de estudio (AOI)
+aoi <- sf::st_read(
+  here::here("data/P2/aoi/aoi.gpkg"),
+  quiet = TRUE
+)
+
+# 2.2. Teselas LiDAR normalizadas
+suppressWarnings({
+  catalogo <- lidR::readLAScatalog(
+    folder = here::here("data/P3/teselas"),
+    filter = "-drop_withheld -drop_z_below 0"
+  )
+})
+
+lidR::projection(catalogo) <- sf::st_crs(25830)
+lidR::opt_progress(catalogo) <- FALSE
+catalogo <- catalogo[sf::st_transform(aoi, sf::st_crs(catalogo)), ]
+
+# 2.3. Cantones
+cantones <- sf::st_read(
+  here::here("data/P5/cantones/Cantones.shp"),
+  quiet = TRUE
+) %>% 
+  sf::st_transform(sf::st_crs(catalogo))
+
+# 2.4. Modelos desempaquetados
+modelos <- readRDS(
+  here::here("data/P4/modelos.rds")
+) %>% 
+  dplyr::mutate(modelo = purrr::map(modelo, bundle::unbundle))
+
+# 3. Calcular métricas LiDAR
+# 3.1. Limpiar métricas previas
+metricas_previas <- list.files(here::here("data/P5/metricas"), pattern = "\\.tif$", full.names = TRUE)
+invisible({
+  if (length(metricas_previas) > 0) suppressWarnings({file.remove(metricas_previas)})
+})
+  
+# 3.2. Especificaciones del catálogo
+lidR::opt_output_files(catalogo) <- here::here("data/P5/metricas/{XLEFT}_{YBOTTOM}")
+lidR::opt_laz_compression(catalogo) <- FALSE
+lidR::opt_progress(catalogo) <- FALSE
+future::plan(future::sequential)
+
+# 3.3. Calcular las métricas
+suppressWarnings({
+  lidR::pixel_metrics(catalogo, .stdmetrics, res = 20)
+})
+
+# 3.4. Raster virtual de las métricas
+metricas <- terra::vrt(
+  list.files(here::here("data/P5/metricas"), pattern = "\\.tif$", full.names = TRUE)
+)
+
+names(metricas) <- names(terra::rast(list.files(here::here("data/P5/metricas"), pattern = "\\.tif$", full.names = TRUE)[[1]]))
+
+# 4. Proyectar rasteres de las variables respuesta
+# 4.1. Función de predicción
+predicir <- function (metrics, models, respuestas) {
+  # 1. terra::predict necesita una función que reciba un data.frame y devuelva un vector
+  fun_predict <- function(model, newdata, ...) {
+    predict(model, new_data = newdata)[[".pred"]]
+  }
+
+  # 2. Calcular capa de una métrica
+  capa <- terra::predict(
+    object = metrics,
+    model = models,
+    fun = fun_predict,
+    na.rm = TRUE
+  )
+
+  # 3. Nombrar capas
+  names(capa) <- respuestas
+  capa
+}
+
+# 4.2. Proyectar
+proyeccion <- purrr::map2(
+  modelos$modelo,
+  modelos$respuesta,
+  \(mod, resp) predicir(metricas, mod, resp)
+) %>%
+  terra::rast() %>% 
+  terra::crop(aoi) %>%
+  { terra::crs(.) <- terra::crs(terra::vect(aoi)); . } %>%
+  terra::mask(aoi)
+
+# 4.3. Visualizar
+(viz_proyeccion <- modelos$respuesta %>%
+  purrr::map(\(var) mapview::mapview(proyeccion[[var]], layer.name = var, na.color = "transparent", alpha.regions = 0.7)) %>%
+  purrr::reduce(`+`))
+
+# 5. Extraer métricas de los cantones
+# 5.1. Extraer la media y la desviación típica para cada canton
+proyeccion_cantones <- cantones %>%
+  dplyr::bind_cols(
+    purrr::map(
+      modelos$respuesta,
+      function(var) {
+        capa <- proyeccion[[var]]
+        dplyr::tibble(
+          "{var}_media" := round(terra::extract(capa, cantones, fun = mean, na.rm = TRUE)[[2]], 2),
+          "{var}_sd"    := round(terra::extract(capa, cantones, fun = sd,   na.rm = TRUE)[[2]], 2)
+        )
+      }
+    ) %>%
+      dplyr::bind_cols()
+  )
+
+# 5.2. Visualización
+(viz_proyeccion_cantones <- modelos$respuesta %>%
+  purrr::map(\(var) c(paste0(var, "_media"), paste0(var, "_sd"))) %>%
+  purrr::list_c() %>%
+  purrr::map(
+    \(col) mapview::mapview(
+      proyeccion_cantones,
+      zcol = col,
+      layer.name = col,
+      na.color = "transparent",
+      alpha.regions = 0.7
+    )
+  ) %>%
+  purrr::reduce(`+`))
+
+# 6. Guardado
+terra::writeRaster(metricas, here::here("data/P5/metricas.tif"), overwrite = TRUE)
+terra::writeRaster(proyeccion, here::here("data/P5/proyeccion.tif"), overwrite = TRUE)
+sf::st_write(proyeccion_cantones, here::here("data/P5/proyeccion_cantones.gpkg"), quiet = TRUE, delete_dsn = TRUE)
+mapview::mapshot(viz_proyeccion, url = here::here("data/P5/viz_proyeccion.html"))
+mapview::mapshot(viz_proyeccion_cantones, url = here::here("data/P5/viz_proyeccion_cantones.html"))
+```
+
+# Práctica 6. Procesos de individualización en inventarios LiDAR a escala de árbol.
+
+```{r}
+#| label: practica-6
+
+# 1. Carga de paquetes y limpieza de entorno
+# 1.1. Limpiamos la RAM
+rm(list = ls(all.names = TRUE))
+suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
+invisible(gc(full = TRUE, verbose = FALSE))
+
+# 1.2. Cargamos las librerías a emplear
+pacman::p_load(here, lidR, terra, tidyterra, sf, dplyr, mapview, webshot, dplyr, ForestTools)
+
+# 2. Carga de datos
+# 2.1. Inventario
+inventario <- sf::st_read(
+  here::here("data/P6/inventario/Inventario.shp"),
+  quiet = TRUE
+)
+
+# 2.2. CHM
+chm <- terra::rast(here::here("data/P6/Filabres_534000_4121000_clasificado_Normalizado_MDV.asc")) %>% 
+  `crs<-`("epsg:25830") %>% # Asignar CRS
+  terra::crop(y = sf::st_bbox(inventario)) %>% 
+  terra::focal(w = matrix(1, 3, 3), fun = median, na.rm = TRUE) %>% # Smoothing
+  tidyterra::rename(CHM = focal_median) # Nombrar banda
+
+# 2.3. Catálogo de teselas LiDAR normalizadas
+suppressWarnings({
+  catalogo <- lidR::readLAScatalog(
+    folder = here::here("data/P3/teselas"),
+    filter = "-drop_withheld -drop_z_below 0",
+    progress = FALSE
+  ) %>% 
+    lidR::clip_roi(sf::st_bbox(inventario))
+})
+
+# 2.4. Visualización
+mapview::mapview(
+  dplyr::select(inventario, geometry), 
+  layer.name = "Inventario", 
+  na.color = "transparent", 
+  alpha.regions = 0.7
+) + 
+  mapview::mapview(
+    chm, 
+    layer.name = "CHM", 
+    na.color = "transparent", 
+    alpha.regions = 1, 
+    query.digits  = 1
+  )
+
+# 3. Detección individual de árboles (ITD)
+# 3.1. Función de ventana variable
+# 3.1.1. Modelo 'diámetro copa' ~ 'altura' (Jones et al., 2026)
+modelo <- inventario %>% 
+  dplyr::rename(h = H__m_, d = d_copa__m_) %>% 
+  dplyr::select(h, d) %>% 
+  sf::st_drop_geometry() %>% 
+  stats::lm(d ~ h, .)
+
+# R2 bajo; p-valor -> significativo; conserva relación positiva: +h = +d
+
+# 3.1.2. Función de kernel variable a partir de ecuación alométrica
+f <- function (x) {
+  ws <- coef(modelo)[1] + coef(modelo)[2] * x
+  ws[ws < 1.0] <- 1.0   
+  ws[ws > 4.0] <- 4.0
+  return(ws)
+}
+
+# 3.2. Detección de árboles
+# 3.2.1. Kernel fijo
+itd_f <- lidR::locate_trees(chm, lmf(ws = 1.5, shape = "circular"))
+
+# 3.2.2. Kernel variable
+# 3.2.2.1. Ecuación alométrica
+itd_va <- lidR::locate_trees(chm, lmf(ws = f, shape = "circular"))
+
+# 3.2.2.2. Librería 'ForestTools'
+itd_vf <- ForestTools::vwf(chm, winFun = f, minHeight = 1)
+
+# Con las ventanas variables se detectan un mayor número de árboles
+
+# 3.3. Visualización
+mapview::mapview(
+  sf::st_zm(itd_f), 
+  layer.name = "ITD - fijo", 
+  col.regions = "blue", 
+  na.color = "transparent", 
+  alpha.regions = 1
+) + 
+  mapview::mapview(
+    sf::st_zm(itd_va), 
+    layer.name = "ITD - ecuación alométrica", 
+    col.regions = "green", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  ) +
+  mapview::mapview(
+    sf::st_zm(itd_vf), 
+    layer.name = "ITD - ForestTools", 
+    col.regions = "red", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  ) +
+  mapview::mapview(
+    chm, 
+    layer.name = "CHM", 
+    na.color = "transparent", 
+    alpha.regions = 1, 
+    query.digits  = 1
+  )
+
+# 4. Segmentación individual de árboles (ITS)
+# 4.1. Segmentación de las copas
+suppressWarnings(its_f_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_f)))
+suppressWarnings(its_va_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_va)))
+suppressWarnings(its_vf_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_vf)))
+
+# La segmentación mediante la ecuación alométrica parece la más consistente
+
+# 4.2. Métricas estándar
+# 4.2.1. Calcular métricas estándar de árbol
+its_f_d_mc <- lidR::crown_metrics(its_f_d, func = .stdtreemetrics, geom = "convex")
+its_va_d_mc <- lidR::crown_metrics(its_va_d, func = .stdtreemetrics, geom = "convex")
+its_vf_d_mc <- lidR::crown_metrics(its_vf_d, func = .stdtreemetrics, geom = "convex")
+
+# 4.2.2. Visualización
+mapview::mapview(
+  sf::st_zm(its_f_d_mc) %>% sf::st_set_crs(25830), 
+  layer.name = "Métricas copa - fijo", 
+  zcol = "convhull_area", 
+  na.color = "transparent", 
+  alpha.regions = 1
+) + 
+  mapview::mapview(
+    sf::st_zm(its_va_d_mc) %>% sf::st_set_crs(25830), 
+    layer.name = "Métricas copa - ecuación alométrica", 
+    zcol = "convhull_area", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  ) +
+  mapview::mapview(
+    sf::st_zm(its_vf_d_mc) %>% sf::st_set_crs(25830), 
+    layer.name = "Métricas copa - ForestTools", 
+    zcol = "convhull_area", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  )
+
+# 4.3. Métricas personalizadas
+# 4.3.1. Función de cálculo de métricas
+metricas_copa <- function (z, i) {
+  metricas <- list(
+    z_max = max(z),
+    z_min = min(z),
+    z_mean = mean(z),
+    z_sd = sd(z),
+    i_max = max(i),
+    i_min = min(i),
+    i_mean = mean(i),
+    i_sd = sd(i)
+  )
+
+  return(metricas)
+}
+
+# 4.3.2. Calcular métricas
+its_f_d_mcp <- lidR::crown_metrics(
+  its_f_d, 
+  func = ~metricas_copa(z = its_f_d$Z, i = its_f_d$Intensity), 
+  geom = "convex"
+)
+
+its_va_d_mcp <- lidR::crown_metrics(
+  its_va_d, 
+  func = ~metricas_copa(z = its_va_d$Z, i = its_va_d$Intensity), 
+  geom = "convex"
+)
+
+its_vf_d_mcp <- lidR::crown_metrics(
+  its_vf_d, 
+  func = ~metricas_copa(z = its_vf_d$Z, i = its_vf_d$Intensity), 
+  geom = "convex"
+)
+
+# 4.3.3. Visualización
+mapview::mapview(
+  sf::st_zm(its_f_d_mcp) %>% sf::st_set_crs(25830), 
+  layer.name = "Métricas copa - fijo", 
+  zcol = "z_mean", 
+  na.color = "transparent", 
+  alpha.regions = 1
+) + 
+  mapview::mapview(
+    sf::st_zm(its_va_d_mcp) %>% sf::st_set_crs(25830), 
+    layer.name = "Métricas copa - ecuación alométrica", 
+    zcol = "z_mean", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  ) +
+  mapview::mapview(
+    sf::st_zm(its_vf_d_mcp) %>% sf::st_set_crs(25830), 
+    layer.name = "Métricas copa - ForestTools", 
+    zcol = "z_mean", 
+    na.color = "transparent", 
+    alpha.regions = 1
+  )
+```
+
+```{r}
+#| label: practica-6-export
+#| eval: false
+#| echo: false
+
+pacman::p_load(lidR, dplyr, jsonlite, fs, here, plotly, htmlwidgets, purrr)
+
+# Extraer los treeID válidos
+ids_validos <- its_va_d@data %>%
+  dplyr::filter(!is.na(treeID)) %>%
+  dplyr::pull(treeID) %>%
+  base::unique() %>%
+  base::sort()
+
+# Construir lista de puntos por árbol
+arboles_data <- purrr::map(ids_validos, function(id) {
+  df <- its_va_d@data %>%
+    dplyr::filter(treeID == id) %>%
+    dplyr::select(X, Y, Z)
+  
+  n_puntos <- nrow(df)
+  
+  df <- df %>%
+    dplyr::slice_sample(n = min(n_puntos, 5000)) %>%
+    dplyr::mutate(
+      X = base::round(X - mean(X), 2),
+      Y = base::round(Y - mean(Y), 2),
+      Z = base::round(Z - min(Z),  2)
+    )
+  
+  list(treeID = id, x = df$X, y = df$Y, z = df$Z)
+})
+
+# Guardar JSON
+jsonlite::write_json(
+  x          = arboles_data,
+  path       = here::here("data/P6/arboles/arboles_its_va_d.json"),
+  auto_unbox = TRUE
+)
+message("JSON guardado: ", here::here("data/P6/arboles/arboles_its_va_d.json"))
+
+# HTML autoembebido
+fig <- plotly::plot_ly()
+
+purrr::iwalk(arboles_data, function(a, i) {
+  fig <<- fig %>%
+    plotly::add_trace(
+      x             = a$x,
+      y             = a$y,
+      z             = a$z,
+      type          = "scatter3d",
+      mode          = "markers",
+      name          = paste0("Árbol ", a$treeID),
+      visible       = if (i == 1) TRUE else FALSE,
+      marker        = list(
+        size       = 2,
+        color      = a$z,
+        colorscale = "Viridis",
+        opacity    = 0.85,
+        showscale  = TRUE
+      ),
+      hovertemplate = "X: %{x:.2f} m<br>Y: %{y:.2f} m<br>Z: %{z:.2f} m<extra></extra>"
+    )
+})
+
+botones <- purrr::imap(arboles_data, function(a, i) {
+  visible      <- rep(FALSE, length(arboles_data))
+  visible[i]   <- TRUE
+  list(
+    method = "update",
+    label  = paste0("Árbol ", a$treeID),
+    args   = list(
+      list(visible = visible),
+      list(title = list(
+        text    = paste0("Árbol ", a$treeID),
+        x       = 0.5,
+        xanchor = "center",
+        font    = list(size = 14, color = "#222")
+      ))
+    )
+  )
+})
+
+fig <- fig %>%
+  plotly::layout(
+    updatemenus = list(list(
+      type     = "dropdown",
+      x        = 0,
+      xanchor  = "left",
+      y        = 1.12,
+      yanchor  = "top",
+      buttons  = botones,
+      showactive = TRUE
+    )),
+    scene = list(
+      xaxis  = list(title = "X (m)", showbackground = FALSE),
+      yaxis  = list(title = "Y (m)", showbackground = FALSE),
+      zaxis  = list(title = "Z (m)", showbackground = FALSE),
+      camera = list(eye = list(x = 1.5, y = 1.5, z = 1.2))
+    ),
+    paper_bgcolor = "white",
+    margin        = list(t = 80, r = 20, b = 10, l = 10)
+  )
+
+htmlwidgets::saveWidget(
+  widget = fig,
+  file = here::here("data/P6/arboles/arboles_its_va_d.html"),
+  selfcontained = TRUE,
+  libdir = NULL,
+  title = "Nubes de puntos LiDAR — árboles segmentados (its_va_d)"
+)
+message("HTML autoembebido guardado: ", here::here("data/P6/arboles/arboles_its_va_d.html"))
+```
+
+```{r}
+#| label: practica-6-iframe
+#| echo: false
+#| results: asis
+
+cat(readLines(here::here("data/P6/arboles/arboles_its_va_d.html"), warn = FALSE), sep = "\n")
+```
+
+```{r}
+#| label: session-info
+#| echo: false
+#| results: asis
+
+pacman::p_load(sessioninfo, gt, dplyr)
+
+# Extraer info de paquetes cargados en el documento
+info <- sessioninfo::session_info()
+
+paquetes_df <- info$packages |>
+  dplyr::as_tibble() |>
+  dplyr::filter(attached == TRUE) |>          
+  dplyr::select(
+    Paquete    = package,
+    Versión    = ondiskversion,
+    Fecha      = date,
+    Fuente     = source
+  ) |>
+  dplyr::arrange(Paquete)
+
+sistema_df <- dplyr::tibble(
+  Ítem   = c("R", "Sistema operativo", "Quarto"),
+  Valor  = c(
+    base::paste(R.version$major, R.version$minor, sep = "."),
+    base::paste(Sys.info()[["sysname"]], Sys.info()[["release"]]),
+    base::as.character(quarto::quarto_version())
+  )
+)
+
+# Tabla de sistema
+sistema_df |>
+  gt::gt() |>
+  gt::tab_header(title = "Entorno de ejecución") |>
+  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) |>
+  gt::tab_options(table.border.top.style = "hidden",
+                  table.border.bottom.style = "hidden",
+                  heading.align = "left") |>
+  gt::cols_align(align = "left") |>
+  gt::tab_style(
+    style     = gt::cell_text(weight = "bold"),
+    locations = gt::cells_column_labels()
+  ) |>
+  print()
+
+cat("\n\n")
+
+# Tabla de paquetes
+paquetes_df |>
+  gt::gt() |>
+  gt::tab_header(title = "Paquetes empleados") |>
+  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) |>
+  gt::tab_options(table.border.top.style = "hidden",
+                  table.border.bottom.style = "hidden",
+                  heading.align = "left") |>
+  gt::cols_align(align = "left") |>
+  gt::tab_style(
+    style     = gt::cell_text(weight = "bold"),
+    locations = gt::cells_column_labels()
+  ) |>
+  gt::tab_style(
+    style     = gt::cell_borders(sides = "bottom", weight = gt::px(2)),
+    locations = gt::cells_column_labels()
+  ) |>
+  print()
+```
