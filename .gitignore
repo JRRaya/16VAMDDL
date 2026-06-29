@@ -2,11 +2,6 @@
 docs/
 .Rprofile
 gd.pdf
-template.html
-
-# Carpetas a ignorar su contenido
-data/*
-.vscode/*
-
-# Carpetas a incluir
-!data/estetica/
+renv/
+data/
+.vscode/

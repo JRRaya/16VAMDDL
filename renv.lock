@@ -5,6 +5,26 @@
       {
         "Name": "CRAN",
         "URL": "https://cran.rstudio.com"
+      },
+      {
+        "Name": "BioCsoft",
+        "URL": "https://bioconductor.org/packages/3.22/bioc"
+      },
+      {
+        "Name": "BioCann",
+        "URL": "https://bioconductor.org/packages/3.22/data/annotation"
+      },
+      {
+        "Name": "BioCexp",
+        "URL": "https://bioconductor.org/packages/3.22/data/experiment"
+      },
+      {
+        "Name": "BioCworkflows",
+        "URL": "https://bioconductor.org/packages/3.22/workflows"
+      },
+      {
+        "Name": "BioCbooks",
+        "URL": "https://bioconductor.org/packages/3.22/books"
       }
     ]
   },
@@ -3880,57 +3900,6 @@
       "NeedsCompilation": "yes",
       "Author": "Kamil Slowikowski [aut, cre] (ORCID: <https://orcid.org/0000-0002-2843-6370>), Teun van den Brand [ctb] (ORCID: <https://orcid.org/0000-0002-9335-7468>), Alicia Schep [ctb] (ORCID: <https://orcid.org/0000-0002-3915-0618>), Sean Hughes [ctb] (ORCID: <https://orcid.org/0000-0002-9409-9405>), Trung Kien Dang [ctb] (ORCID: <https://orcid.org/0000-0001-7562-6495>), Saulius Lukauskas [ctb], Jean-Olivier Irisson [ctb] (ORCID: <https://orcid.org/0000-0003-4920-3880>), Zhian N Kamvar [ctb] (ORCID: <https://orcid.org/0000-0003-1458-7108>), Thompson Ryan [ctb] (ORCID: <https://orcid.org/0000-0002-0450-8181>), Dervieux Christophe [ctb] (ORCID: <https://orcid.org/0000-0003-4474-2498>), Yutani Hiroaki [ctb], Pierre Gramme [ctb], Amir Masoud Abdol [ctb], Malcolm Barrett [ctb] (ORCID: <https://orcid.org/0000-0003-0299-5825>), Robrecht Cannoodt [ctb] (ORCID: <https://orcid.org/0000-0003-3641-729X>), Michał Krassowski [ctb] (ORCID: <https://orcid.org/0000-0002-9638-7785>), Michael Chirico [ctb] (ORCID: <https://orcid.org/0000-0003-0787-087X>), Pedro Aphalo [ctb] (ORCID: <https://orcid.org/0000-0003-3385-972X>), Francis Barton [ctb]",
       "Maintainer": "Kamil Slowikowski <kslowikowski@gmail.com>",
-      "Repository": "CRAN"
-    },
-    "ggspatial": {
-      "Package": "ggspatial",
-      "Version": "1.1.10",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Spatial Data Framework for ggplot2",
-      "Authors@R": "c( person(\"Dewey\", \"Dunnington\", email = \"dewey@fishandwhistle.net\",  role = c(\"aut\", \"cre\"),  comment = c(ORCID = \"0000-0002-9415-4582\") ), person(\"Brent\", \"Thorne\", role = \"ctb\", comment = c(ORCID = \"0000-0002-1099-3857\")), person(\"Diego\", \"Hernangómez\", role = \"ctb\", comment = c(ORCID = \"0000-0001-8457-4658\")) )",
-      "Maintainer": "Dewey Dunnington <dewey@fishandwhistle.net>",
-      "Description": "Spatial data plus the power of the ggplot2 framework means easier mapping when input  data are already in the form of spatial objects.",
-      "License": "GPL-3",
-      "Depends": [
-        "R (>= 2.10)"
-      ],
-      "Imports": [
-        "sf",
-        "ggplot2 (>= 3.0.0)",
-        "rosm (>= 0.2)",
-        "abind",
-        "methods",
-        "tibble",
-        "scales",
-        "tidyr",
-        "rlang",
-        "grid",
-        "glue"
-      ],
-      "Suggests": [
-        "prettymapr",
-        "knitr",
-        "rmarkdown",
-        "sp",
-        "raster",
-        "terra",
-        "testthat (>= 3.0.0)",
-        "dplyr",
-        "withr",
-        "ggrepel",
-        "stars",
-        "covr",
-        "vdiffr",
-        "lwgeom"
-      ],
-      "URL": "https://paleolimbot.github.io/ggspatial/, https://github.com/paleolimbot/ggspatial",
-      "BugReports": "https://github.com/paleolimbot/ggspatial/issues",
-      "RoxygenNote": "7.3.2",
-      "Encoding": "UTF-8",
-      "Config/testthat/edition": "3",
-      "NeedsCompilation": "no",
-      "Author": "Dewey Dunnington [aut, cre] (ORCID: <https://orcid.org/0000-0002-9415-4582>), Brent Thorne [ctb] (ORCID: <https://orcid.org/0000-0002-1099-3857>), Diego Hernangómez [ctb] (ORCID: <https://orcid.org/0000-0001-8457-4658>)",
       "Repository": "CRAN"
     },
     "glmnet": {
@@ -8884,48 +8853,6 @@
       "Maintainer": "Yihui Xie <xie@yihui.name>",
       "Repository": "CRAN"
     },
-    "rosm": {
-      "Package": "rosm",
-      "Version": "0.3.1",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Plot Raster Map Tiles from Open Street Map and Other Sources",
-      "Encoding": "UTF-8",
-      "Authors@R": "c(person(\"Dewey\", \"Dunnington\", role = c(\"aut\", \"cre\"), email = \"dewey@fishandwhistle.net\", comment = c(ORCID = \"0000-0002-9415-4582\")), person(\"Timothée\", \"Giraud\", role = \"ctb\"))",
-      "Maintainer": "Dewey Dunnington <dewey@fishandwhistle.net>",
-      "Description": "Download and plot Open Street Map <https://www.openstreetmap.org/>, Bing Maps <https://www.bing.com/maps> and other tiled map sources. Use to create  basemaps quickly and add hillshade to vector-based maps.",
-      "License": "GPL-2",
-      "Imports": [
-        "curl",
-        "jpeg",
-        "png",
-        "wk",
-        "glue",
-        "progress",
-        "rlang"
-      ],
-      "Suggests": [
-        "sp",
-        "plyr",
-        "raster",
-        "testthat (>= 3.0.0)",
-        "withr",
-        "sf",
-        "terra",
-        "abind",
-        "methods",
-        "jsonlite",
-        "tiff",
-        "vdiffr"
-      ],
-      "URL": "https://github.com/paleolimbot/rosm",
-      "BugReports": "https://github.com/paleolimbot/rosm/issues",
-      "RoxygenNote": "7.3.3",
-      "Config/testthat/edition": "3",
-      "NeedsCompilation": "no",
-      "Author": "Dewey Dunnington [aut, cre] (ORCID: <https://orcid.org/0000-0002-9415-4582>), Timothée Giraud [ctb]",
-      "Repository": "CRAN"
-    },
     "rpart": {
       "Package": "rpart",
       "Version": "4.1.24",
@@ -9450,6 +9377,44 @@
       "NeedsCompilation": "no",
       "Author": "Yihui Xie [aut, cre] (ORCID: <https://orcid.org/0000-0003-0645-5666>, URL: https://yihui.org), Carson Sievert [ctb], Jesse Anderson [ctb], Ramnath Vaidyanathan [ctb], Romain Lesur [ctb], Posit Software, PBC [cph, fnd]",
       "Maintainer": "Yihui Xie <xie@yihui.name>",
+      "Repository": "CRAN"
+    },
+    "sessioninfo": {
+      "Package": "sessioninfo",
+      "Version": "1.2.4",
+      "Source": "Repository",
+      "Title": "R Session Information",
+      "Authors@R": "c( person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = \"cre\"), person(\"Hadley\", \"Wickham\", role = \"aut\"), person(\"Winston\", \"Chang\", role = \"aut\"), person(\"Robert\", \"Flight\", role = \"aut\"), person(\"Kirill\", \"Müller\", role = \"aut\"), person(\"Jim\", \"Hester\", role = \"aut\"), person(\"R Core team\", role = \"ctb\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
+      "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
+      "Description": "Query and print information about the current R session.  It is similar to 'utils::sessionInfo()', but includes more information about packages, and where they were installed from.",
+      "License": "GPL-2",
+      "URL": "https://sessioninfo.r-lib.org, https://github.com/r-lib/sessioninfo",
+      "BugReports": "https://github.com/r-lib/sessioninfo/issues",
+      "Depends": [
+        "R (>= 3.4)"
+      ],
+      "Imports": [
+        "cli (>= 3.1.0)",
+        "tools",
+        "utils"
+      ],
+      "Suggests": [
+        "callr",
+        "covr",
+        "gh",
+        "reticulate",
+        "rmarkdown",
+        "testthat (>= 3.2.0)",
+        "withr"
+      ],
+      "Config/Needs/website": "pkgdown, tidyverse/tidytemplate",
+      "Config/testthat/edition": "3",
+      "Config/testthat/parallel": "true",
+      "Config/usethis/last-upkeep": "2025-05-07",
+      "Encoding": "UTF-8",
+      "Config/roxygen2/version": "8.0.0",
+      "NeedsCompilation": "no",
+      "Author": "Gábor Csárdi [cre], Hadley Wickham [aut], Winston Chang [aut], Robert Flight [aut], Kirill Müller [aut], Jim Hester [aut], R Core team [ctb], Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Repository": "CRAN"
     },
     "sf": {

@@ -8,7 +8,7 @@
   font-family: sans-serif;
 ">
   <label style="display:flex; flex-direction:column; gap:.3rem; font-size:.85rem; font-weight:600; color:#444;">
-    Árbol (treeID)
+    Árbol
     <select id="sel-arbol" style="
       padding:.35rem .6rem; border:1px solid #ccc; border-radius:4px;
       font-size:.9rem; min-width:200px; cursor:pointer;
@@ -16,15 +16,15 @@
   </label>
 </div>
 
-<div id="plot-its" style="width:100%; height:520px;"></div>
+<div id="plot-arbol" style="width:100%; height:600px;"></div>
 
 <script>
 (function () {
-  const data   = JSON.parse(document.getElementById("its-data").textContent);
+  const data   = JSON.parse(document.getElementById("arboles-data").textContent);
   const select = document.getElementById("sel-arbol");
-  const div    = document.getElementById("plot-its");
+  const div    = document.getElementById("plot-arbol");
 
-  // Poblar selector con los treeID
+  // Poblar selector
   data.forEach(a => {
     const opt = document.createElement("option");
     opt.value       = a.treeID;
@@ -33,7 +33,7 @@
   });
 
   function getArbolById(id) {
-    return data.find(a => String(a.treeID) === String(id));
+    return data.find(a => a.treeID == id);
   }
 
   function render(id) {
@@ -41,25 +41,35 @@
     if (!a) return;
 
     Plotly.react(div, [{
-      type: "bar",
-      x: ["Altura (m)", "Área copa (m²)", "N.º puntos"],
-      y: [a.altura, a.area_copa, a.n_puntos],
+      type  : "scatter3d",
+      mode  : "markers",
+      x     : a.x,
+      y     : a.y,
+      z     : a.z,
       marker: {
-        color: ["#440154", "#21908c", "#fde725"]  // paleta Viridis
+        size       : 2,
+        color      : a.z,
+        colorscale : "Viridis",
+        opacity    : 0.85,
+        showscale  : true,
+        colorbar   : { title: { text: "Altura (m)", side: "right" } }
       },
-      hovertemplate: "%{x}: %{y:.2f}<extra></extra>"
+      hovertemplate: "X: %{x:.2f} m<br>Y: %{y:.2f} m<br>Z: %{z:.2f} m<extra></extra>"
     }], {
-      title: {
-        text    : "Árbol " + a.treeID +
-                  " — X: " + a.cx.toFixed(1) + " m, Y: " + a.cy.toFixed(1) + " m",
+      title : {
+        text    : "Árbol " + a.treeID,
         font    : { size: 14, color: "#222" },
         x       : 0.5,
         xanchor : "center"
       },
-      yaxis : { title: "Valor" },
-      xaxis : { title: "Métrica" },
+      scene: {
+        xaxis: { title: "X (m)", showbackground: false },
+        yaxis: { title: "Y (m)", showbackground: false },
+        zaxis: { title: "Z (m)", showbackground: false },
+        camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+      },
       paper_bgcolor: "white",
-      margin: { t: 60, r: 20, b: 50, l: 60 }
+      margin: { t: 50, r: 20, b: 10, l: 10 }
     }, {
       responsive  : true,
       displaylogo : false,

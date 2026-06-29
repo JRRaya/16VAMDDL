@@ -1,0 +1,126 @@
+<!-- =========================================================
+     Selector de estilos visuales (paletas elegantes)
+     Funciona por sobreescritura de variables CSS de Bootstrap,
+     compatible con embed-resources (no depende de archivos
+     externos ni de recompilación de SCSS).
+     ========================================================= -->
+<style>
+:root {
+  --vamddl-transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+
+#vamddl-theme-picker {
+  position: fixed;
+  top: 12px;
+  right: 84px;
+  z-index: 1051;
+  font-family: var(--bs-font-sans-serif, system-ui, sans-serif);
+}
+
+#vamddl-theme-picker select {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.15);
+  background-color: rgba(255,255,255,.9);
+  color: #222;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  cursor: pointer;
+}
+
+body.quarto-dark #vamddl-theme-picker select {
+  background-color: rgba(30,30,30,.9);
+  color: #eee;
+  border-color: rgba(255,255,255,.15);
+}
+
+@media (max-width: 575.98px) {
+  #vamddl-theme-picker { right: 60px; top: 8px; }
+  #vamddl-theme-picker select { font-size: 0.7rem; padding: 0.25rem 0.45rem; }
+}
+
+body, .navbar, .quarto-title-banner, .card, pre, code {
+  transition: var(--vamddl-transition);
+}
+
+/* El selector de paletas sustituye al toggle binario nativo de Quarto */
+.quarto-color-scheme-toggle {
+  display: none !important;
+}
+</style>
+
+<div id="vamddl-theme-picker">
+  <label for="vamddl-palette-select" class="visually-hidden">Paleta de color</label>
+  <select id="vamddl-palette-select" aria-label="Seleccionar paleta de color">
+    <option value="cosmo">Cosmo · Azul claro</option>
+    <option value="flatly">Flatly · Verde plano</option>
+    <option value="lux">Lux · Elegante oscuro</option>
+    <option value="sandstone">Sandstone · Tierra cálida</option>
+    <option value="darkly">Darkly · Oscuro</option>
+    <option value="superhero">Superhero · Azul noche</option>
+  </select>
+</div>
+
+<script>
+(function () {
+  // Paletas: variables clave de color sobre el tema base (light/dark) ya cargado por Quarto.
+  var palettes = {
+    cosmo: {
+      base: "light",
+      vars: { "--bs-primary": "#2780e3", "--bs-body-bg": "#ffffff", "--bs-body-color": "#212529",
+              "--bs-link-color": "#2780e3", "--bs-navbar-bg": "#2780e3" }
+    },
+    flatly: {
+      base: "light",
+      vars: { "--bs-primary": "#2c3e50", "--bs-body-bg": "#ffffff", "--bs-body-color": "#2c3e50",
+              "--bs-link-color": "#18bc9c", "--bs-navbar-bg": "#2c3e50" }
+    },
+    lux: {
+      base: "light",
+      vars: { "--bs-primary": "#1a1a1a", "--bs-body-bg": "#ffffff", "--bs-body-color": "#1a1a1a",
+              "--bs-link-color": "#a37dba", "--bs-navbar-bg": "#1a1a1a" }
+    },
+    sandstone: {
+      base: "light",
+      vars: { "--bs-primary": "#325d88", "--bs-body-bg": "#fdfaf6", "--bs-body-color": "#3e3f3a",
+              "--bs-link-color": "#93c54b", "--bs-navbar-bg": "#3e3f3a" }
+    },
+    darkly: {
+      base: "dark",
+      vars: { "--bs-primary": "#375a7f", "--bs-body-bg": "#222222", "--bs-body-color": "#ffffff",
+              "--bs-link-color": "#00bc8c", "--bs-navbar-bg": "#375a7f" }
+    },
+    superhero: {
+      base: "dark",
+      vars: { "--bs-primary": "#4c9be8", "--bs-body-bg": "#0f2537", "--bs-body-color": "#ebebeb",
+              "--bs-link-color": "#df691a", "--bs-navbar-bg": "#2b3e50" }
+    }
+  };
+
+  function applyPalette(name) {
+    var p = palettes[name];
+    if (!p) return;
+    var root = document.documentElement;
+    Object.keys(p.vars).forEach(function (k) {
+      root.style.setProperty(k, p.vars[k]);
+    });
+    // Alterna la clase de modo claro/oscuro de Quarto para mantener contraste coherente
+    document.body.classList.toggle("quarto-dark", p.base === "dark");
+    document.body.classList.toggle("quarto-light", p.base === "light");
+    try { localStorage.setItem("vamddl-palette", name); } catch (e) {}
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var select = document.getElementById("vamddl-palette-select");
+    if (!select) return;
+    var saved = null;
+    try { saved = localStorage.getItem("vamddl-palette"); } catch (e) {}
+    var initial = saved && palettes[saved] ? saved : "cosmo";
+    select.value = initial;
+    applyPalette(initial);
+    select.addEventListener("change", function () {
+      applyPalette(this.value);
+    });
+  });
+})();
+</script>

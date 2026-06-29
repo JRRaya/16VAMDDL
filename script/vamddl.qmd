@@ -1,30 +1,36 @@
 ---
-title: "Modela y extracción de métricas de parcelas y árboles individuales a partir de datos LiDAR"
+title: "Modelización y extracción de métricas de parcelas y árboles individuales a partir de datos LiDAR"
 subtitle: "Entrega de la asignatura *Variables de Árbol de Masa Derivadas de Datos LiDAR*"
-description: "En este trabajo se desarrolla la segunda parte del procesamiento y manejo de datos LiDAR, mucho más enfocada en obtener productos cartográficos de valor para la gestión forestal eficiente"
-author: "Raya Castillo, José Raúl"
-email: a02racaj@uco.es
+author:
+  - name: "Raya Castillo, José Raúl"
+    email: a02racaj@uco.es
+    affiliation: Universidad de Córdoba
 date: today
-affiliation: Universidad de Córdoba
-
-github-repo: "https://github.com/JRRaya/16VAMDDL.git"
-logo: "img/logo.png" 
 
 format:
-  lumo-html:
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
     code-fold: true
     toc: true
-    number-sections: true
+    toc-location: left
+    number-sections: false
     embed-resources: true
     self-contained-math: true
     smooth-scroll: true
     fig-width: 9
     fig-height: 6
-    theme:
-      light: [_extensions/lumo/lumo.scss, data/estetica/custom-light.scss]
-      dark:  [_extensions/lumo/lumo.scss, data/estetica/custom-dark.scss]
+    title-block-banner: true
+    title-block-banner-color: body
+    include-in-header:
+      - file: github-corner.html
+      - file: theme-picker.html
+    include-before-body:
+      - file: logo-banner.html
+    css: data/estetica/vamddl-styles.css
 
-execute: 
+execute:
   message: false
   warning: false
   error: false
@@ -35,6 +41,50 @@ knitr:
     root.dir: ".."
     fig.align: 'center'
 ---
+
+# Práctica 1: Flujo de trabajo
+
+```{mermaid}
+%%| label: standard-lidar-workflow
+
+flowchart TD
+    subgraph L1["LiDAR I"]
+        A[Planificación vuelo LiDAR] --> B[Vuelo + Postprocesado]
+        B --> C[Control calidad vuelo]
+        C --> D[Filtrado clasificación suelo]
+        D --> E[Nube de puntos normalizada]
+        D --> F[CHM]
+        D --> G[DSM]
+        D --> H[DTM]
+        E --> I[Extraer métricas]
+    end
+
+    subgraph L2["LiDAR II"]
+        subgraph AREA["Métricas de rodal"]
+            J[Recortar parcela] --> K[Extraer métricas]
+            K --> M[Generación de modelos]
+            N[Datos de campo] --> M
+            M --> O[Aplicar modelo]
+        end
+
+        subgraph PIE["Métricas de árbol"]
+            P[Delineación de pies] --> Q[Extraer métricas]
+            Q --> R[Generación de modelos]
+            S[Datos de campo] --> R
+            R --> T[Aplicar modelo]
+        end
+    end
+
+    I --> J
+    I --> P
+
+    style L1 fill:#f0fff0,stroke:#2d8a2d
+    style L2 fill:#9fef9f,stroke:#2d8a2d
+    style AREA fill:#e8f5e9,stroke:#2d8a2d
+    style PIE fill:#e8f5e9,stroke:#2d8a2d
+    classDef green fill:#5cb85c,stroke:#2d8a2d,color:#fff
+    class A,B,C,D,E,F,G,H,I,J,K,M,N,O,P,Q,R,S,T green
+```
 
 # Práctica 2: Diseño de parcelas de campo
 
@@ -49,6 +99,15 @@ invisible(gc(full = TRUE, verbose = FALSE))
 
 # 1.2. Cargamos las librerías a emplear
 pacman::p_load(here, terra, sf, dplyr, mapview, ggplot2, magrittr, viridis, gt)
+
+# 1.3. Configurar barra de progreso
+progressr::handlers("void")
+# progressr::handlers(global = TRUE)
+options(pbapply.pb_char = "", pboptions = list(type = "none"))
+if (requireNamespace("pbapply", quietly = TRUE)) {
+  pbapply::pboptions(type = "none")
+}
+options(terra.verbose = FALSE)
 
 # 2. Carga de datos
 # 2.1. Área de estudio (AOI)
@@ -354,7 +413,16 @@ suppressMessages(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
 invisible(gc(full = TRUE, verbose = FALSE))
 
 # 1.2. Cargamos las librerías a emplear
-pacman::p_load(here, lidR, terra, sf, dplyr, mapview, ggplot2, purrr, dplyr, readxl)
+pacman::p_load(here, lidR, terra, sf, dplyr, ggplot2, purrr, dplyr, readxl)
+
+# 1.3. Configurar barra de progreso
+progressr::handlers("void")
+# progressr::handlers(global = TRUE)
+options(pbapply.pb_char = "", pboptions = list(type = "none"))
+if (requireNamespace("pbapply", quietly = TRUE)) {
+  pbapply::pboptions(type = "none")
+}
+options(terra.verbose = FALSE)
 
 # 2. Carga de datos
 # 2.1. Área de estudio (AOI)
@@ -520,6 +588,14 @@ pacman::p_load(
 )
 pacman::p_load_gh("stevenpawley/colino")
 
+# 1.3. Configurar barra de progreso
+progressr::handlers("void")
+# progressr::handlers(global = TRUE)
+options(pbapply.pb_char = "", pboptions = list(type = "none"))
+if (requireNamespace("pbapply", quietly = TRUE)) {
+  pbapply::pboptions(type = "none")
+}
+options(terra.verbose = FALSE)
 
 # 2. Carga de datos
 # 2.1. Base de datos
@@ -845,7 +921,7 @@ saveRDS(
 # Práctica 5: Proyección de resultados del Inventario LiDAR por métodos de masa y Cartografía asociada
 
 ```{r}
-#| label: practica-5
+#| label: practica-5.1
 
 # 1. Carga de paquetes y limpieza de entorno
 # 1.1. Limpiamos la RAM
@@ -855,6 +931,16 @@ invisible(gc(full = TRUE, verbose = FALSE))
 
 # 1.2. Cargamos las librerías a emplear
 pacman::p_load(here, lidR, terra, sf, dplyr, mapview, webshot, ggplot2, purrr, dplyr, readxl, parsnip, tidymodels, bundle)
+
+# 1.3. Configurar barra de progreso
+progressr::handlers("void")
+# progressr::handlers(global = TRUE)
+options(pbapply.pb_char = "", pboptions = list(type = "none"))
+if (requireNamespace("pbapply", quietly = TRUE)) {
+  pbapply::pboptions(type = "none")
+}
+options(terra.verbose = FALSE)
+options(lidR.progress = FALSE)
 
 # 2. Carga de datos
 # 2.1. Área de estudio (AOI)
@@ -891,10 +977,16 @@ modelos <- readRDS(
 # 3. Calcular métricas LiDAR
 # 3.1. Limpiar métricas previas
 metricas_previas <- list.files(here::here("data/P5/metricas"), pattern = "\\.tif$", full.names = TRUE)
+
 invisible({
   if (length(metricas_previas) > 0) suppressWarnings({file.remove(metricas_previas)})
 })
-  
+```
+
+```{r}
+#| label: practica-5.2
+#| output: false
+
 # 3.2. Especificaciones del catálogo
 lidR::opt_output_files(catalogo) <- here::here("data/P5/metricas/{XLEFT}_{YBOTTOM}")
 lidR::opt_laz_compression(catalogo) <- FALSE
@@ -902,9 +994,11 @@ lidR::opt_progress(catalogo) <- FALSE
 future::plan(future::sequential)
 
 # 3.3. Calcular las métricas
-suppressWarnings({
-  lidR::pixel_metrics(catalogo, .stdmetrics, res = 20)
-})
+metricas <- suppressMessages(
+  progressr::without_progress(
+    lidR::pixel_metrics(catalogo, .stdmetrics, res = 20)
+  )
+)
 
 # 3.4. Raster virtual de las métricas
 metricas <- terra::vrt(
@@ -912,6 +1006,10 @@ metricas <- terra::vrt(
 )
 
 names(metricas) <- names(terra::rast(list.files(here::here("data/P5/metricas"), pattern = "\\.tif$", full.names = TRUE)[[1]]))
+```
+
+```{r}
+#| label: practica-5.3
 
 # 4. Proyectar rasteres de las variables respuesta
 # 4.1. Función de predicción
@@ -1004,6 +1102,15 @@ invisible(gc(full = TRUE, verbose = FALSE))
 # 1.2. Cargamos las librerías a emplear
 pacman::p_load(here, lidR, terra, tidyterra, sf, dplyr, mapview, webshot, dplyr, ForestTools)
 
+# 1.3. Configurar barra de progreso
+progressr::handlers("void")
+# progressr::handlers(global = TRUE)
+options(pbapply.pb_char = "", pboptions = list(type = "none"))
+if (requireNamespace("pbapply", quietly = TRUE)) {
+  pbapply::pboptions(type = "none")
+}
+options(terra.verbose = FALSE)
+
 # 2. Carga de datos
 # 2.1. Inventario
 inventario <- sf::st_read(
@@ -1019,7 +1126,7 @@ chm <- terra::rast(here::here("data/P6/Filabres_534000_4121000_clasificado_Norma
   tidyterra::rename(CHM = focal_median) # Nombrar banda
 
 # 2.3. Catálogo de teselas LiDAR normalizadas
-suppressWarnings({
+progressr::without_progress({
   catalogo <- lidR::readLAScatalog(
     folder = here::here("data/P3/teselas"),
     filter = "-drop_withheld -drop_z_below 0",
@@ -1040,7 +1147,7 @@ mapview::mapview(
     layer.name = "CHM", 
     na.color = "transparent", 
     alpha.regions = 1, 
-    query.digits  = 1
+    query.digits = 1
   )
 
 # 3. Detección individual de árboles (ITD)
@@ -1107,17 +1214,23 @@ mapview::mapview(
 
 # 4. Segmentación individual de árboles (ITS)
 # 4.1. Segmentación de las copas
-suppressWarnings(its_f_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_f)))
-suppressWarnings(its_va_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_va)))
-suppressWarnings(its_vf_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_vf)))
+progressr::without_progress({
+  suppressWarnings({
+    its_f_d  <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_f))
+    its_va_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_va))
+    its_vf_d <- lidR::segment_trees(catalogo, lidR::dalponte2016(chm, itd_vf))
+  })
+})
 
 # La segmentación mediante la ecuación alométrica parece la más consistente
 
 # 4.2. Métricas estándar
 # 4.2.1. Calcular métricas estándar de árbol
-its_f_d_mc <- lidR::crown_metrics(its_f_d, func = .stdtreemetrics, geom = "convex")
-its_va_d_mc <- lidR::crown_metrics(its_va_d, func = .stdtreemetrics, geom = "convex")
-its_vf_d_mc <- lidR::crown_metrics(its_vf_d, func = .stdtreemetrics, geom = "convex")
+progressr::without_progress({
+  its_f_d_mc  <- lidR::crown_metrics(its_f_d,  func = .stdtreemetrics, geom = "convex")
+  its_va_d_mc <- lidR::crown_metrics(its_va_d, func = .stdtreemetrics, geom = "convex")
+  its_vf_d_mc <- lidR::crown_metrics(its_vf_d, func = .stdtreemetrics, geom = "convex")
+})
 
 # 4.2.2. Visualización
 mapview::mapview(
@@ -1317,76 +1430,61 @@ message("HTML autoembebido guardado: ", here::here("data/P6/arboles/arboles_its_
 ```
 
 ```{r}
-#| label: practica-6-iframe
+#| label: practica-6-json-embed
 #| echo: false
 #| results: asis
 
-cat(readLines(here::here("data/P6/arboles/arboles_its_va_d.html"), warn = FALSE), sep = "\n")
+pacman::p_load(here, jsonlite)
+
+json_str <- jsonlite::toJSON(
+  jsonlite::read_json(
+    here::here("data/P6/arboles/arboles_its_va_d.json")
+  ),
+  auto_unbox = TRUE
+)
+
+cat(sprintf(
+  '<script type="application/json" id="arboles-data">%s</script>\n',
+  json_str
+))
 ```
+
+{{< include practica_6.html >}}
 
 ```{r}
 #| label: session-info
 #| echo: false
-#| results: asis
 
-pacman::p_load(sessioninfo, gt, dplyr)
+pacman::p_load(sessioninfo, dplyr, knitr)
 
-# Extraer info de paquetes cargados en el documento
 info <- sessioninfo::session_info()
 
-paquetes_df <- info$packages |>
-  dplyr::as_tibble() |>
-  dplyr::filter(attached == TRUE) |>          
-  dplyr::select(
-    Paquete    = package,
-    Versión    = ondiskversion,
-    Fecha      = date,
-    Fuente     = source
-  ) |>
-  dplyr::arrange(Paquete)
-
-sistema_df <- dplyr::tibble(
-  Ítem   = c("R", "Sistema operativo", "Quarto"),
-  Valor  = c(
+# Tabla de sistema
+dplyr::tibble(
+  Ítem  = c("R", "Sistema operativo", "Plataforma"),
+  Valor = c(
     base::paste(R.version$major, R.version$minor, sep = "."),
     base::paste(Sys.info()[["sysname"]], Sys.info()[["release"]]),
-    base::as.character(quarto::quarto_version())
+    R.version$platform
   )
-)
+) |>
+  knitr::kable(caption = "Entorno de ejecución")
+```
 
-# Tabla de sistema
-sistema_df |>
-  gt::gt() |>
-  gt::tab_header(title = "Entorno de ejecución") |>
-  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) |>
-  gt::tab_options(table.border.top.style = "hidden",
-                  table.border.bottom.style = "hidden",
-                  heading.align = "left") |>
-  gt::cols_align(align = "left") |>
-  gt::tab_style(
-    style     = gt::cell_text(weight = "bold"),
-    locations = gt::cells_column_labels()
-  ) |>
-  print()
 
-cat("\n\n")
+```{r}
+#| label: session-paquetes
+#| echo: false
 
-# Tabla de paquetes
-paquetes_df |>
-  gt::gt() |>
-  gt::tab_header(title = "Paquetes empleados") |>
-  gt::opt_table_font(font = gt::google_font("IBM Plex Sans")) |>
-  gt::tab_options(table.border.top.style = "hidden",
-                  table.border.bottom.style = "hidden",
-                  heading.align = "left") |>
-  gt::cols_align(align = "left") |>
-  gt::tab_style(
-    style     = gt::cell_text(weight = "bold"),
-    locations = gt::cells_column_labels()
+info$packages |>
+  dplyr::as_tibble() |>
+  dplyr::filter(attached == TRUE) |>
+  dplyr::select(
+    Paquete  = package,
+    Versión  = ondiskversion,
+    Fecha    = date,
+    Fuente   = source
   ) |>
-  gt::tab_style(
-    style     = gt::cell_borders(sides = "bottom", weight = gt::px(2)),
-    locations = gt::cells_column_labels()
-  ) |>
-  print()
+  dplyr::arrange(Paquete) |>
+  knitr::kable(caption = "Paquetes empleados")
 ```
